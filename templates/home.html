@@ -1,0 +1,47 @@
+<!doctype html>
+<title>Mr. Slinky</title>
+
+<h1>Mr. Slinky</h1>
+
+<table border="1">
+    <tr>
+        <td>motor speed</td>
+        <td id="motor-speed">...</td>
+    </tr>
+    <tr>
+        <td>steps count</td>
+        <td id="steps-count">...</td>
+    </tr>
+</table>
+
+<hr>
+
+<button onclick="speedUp()">Speed up</button>
+<button onclick="updateData()">Refresh</button>
+
+<script>
+function speedUp() {
+    fetch('/speed-up', {
+        method: 'POST'
+    }).then(response => {
+        if (response.ok) {
+            updateData();
+        } else {
+            console.error('Speed up failed');
+        }
+    });
+}
+
+function updateData() {
+    fetch('/data')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('motor-speed').textContent = data.motor_speed;
+            document.getElementById('steps-count').textContent = data.steps_count;
+        });
+}
+
+window.onload = function() {
+    updateData();
+};
+</script>
