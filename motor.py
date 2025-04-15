@@ -2,10 +2,16 @@ import time
 import RPi.GPIO as GPIO
 
 
+IS_RUNNING = True    # indicates whether motor is running
+
+START_DELAY = 0.0006
+delay = START_DELAY  # same as START_DELAY
+
+
 def main():
     try:
-
-        IS_RUNNING = True   # indicates whether motor is running
+        global IS_RUNNING
+        global delay
 
         DIR = 20             # Direction GPIO Pin
         STEP = 21            # Step GPIO Pin
@@ -50,8 +56,6 @@ def main():
 
         SPEED_CHANGE_INTERVAL = 3
 
-
-        START_DELAY = 0.0006
         delay = START_DELAY
 
 
@@ -81,11 +85,8 @@ def main():
 
 
 
-
-
         time.sleep(1)
         GPIO.output(DIR, CCW)
-
 
 
         last_top_time = time.time()
@@ -108,7 +109,7 @@ def main():
 
         while True:
             if cycles % STEP_CYCLES_COUNT == 0:
-                print("Step:", cycles/STEP_CYCLES_COUNT, 'SPEED:', delay)
+                print('Step:', cycles/STEP_CYCLES_COUNT, 'SPEED:', delay)
             cycles += 1
 
             if IS_RUNNING:
@@ -161,7 +162,7 @@ def main():
                 average_count = 1
 
     except KeyboardInterrupt:
-        print("Stopping motor script")
+        print('Stopping motor script')
     finally:
         GPIO.cleanup()
 
