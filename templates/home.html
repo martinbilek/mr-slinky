@@ -17,7 +17,9 @@
 <hr>
 
 <button onclick="speedUp()">Speed up</button>
+<button onclick="speedDown()">Speed down</button>
 <button onclick="updateData()">Refresh</button>
+<button onclick="toggleMotor()">Toggle motor</button>
 
 <script>
 function speedUp() {
@@ -32,6 +34,30 @@ function speedUp() {
     });
 }
 
+function speedDown() {
+    fetch('/speed-down', {
+        method: 'POST'
+    }).then(response => {
+        if (response.ok) {
+            updateData();
+        } else {
+            console.error('Speed down failed');
+        }
+    });
+}
+
+function toggleMotor() {
+    fetch('/toggle-motor', {
+        method: 'POST'
+    }).then(response => {
+        if (response.ok) {
+            updateData();
+        } else {
+            console.error('Toggle motor failed');
+        }
+    });
+}
+
 function updateData() {
     fetch('/data')
         .then(response => response.json())
@@ -41,7 +67,6 @@ function updateData() {
         });
 }
 
-window.onload = function() {
-    updateData();
-};
+window.onload = updateData;
+setInterval(updateData, 500);
 </script>
