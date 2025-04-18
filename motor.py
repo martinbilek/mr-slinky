@@ -22,8 +22,6 @@ ENABLE_SENSORS = True        # whether automatic speed sensors are enabled
 SENSOR_BOTTOM_PIN = 27       # PIN of bottom sensor
 SENSOR_TOP_PIN = 17          # PIN of top sensor
 
-SHUTDOWN_DELAY = 4.0         # delay, when motor is automatically
-                             # powerd off when TOP and BOTTOM sensor are without signal
 MAX_DELAY = 0.001            # maximum delay for step motor between steps
 MIN_DELAY = 0.0001           # minimum delay for step motor between steps
 DELAY_CONST_PCT = 1.05       # constant how much in percent is changed speed
@@ -32,6 +30,10 @@ SPEED_CHANGE_INTERVAL = 3    # how often can be speed changed in seconds
 STEP_CYCLES_COUNT = 1231     # number of motor steps needed to run one elevator step
 
 PUBSUB_CHECK_INTERVAL = 0.5  # to save time/CPU we only check redis pubsub messages channel once per specified time in seconds
+
+# FIXME: it seems, that this value needs to be higher than SPEED_CHANGE_INTERVAL otherwise automatic shutdown does not work
+SHUTDOWN_DELAY = 2.0         # delay, when motor is automatically
+                             # powerd off when TOP and BOTTOM sensor are without signal
 
 
 # Variables
