@@ -1,17 +1,36 @@
+import redis
+
 import time
 import RPi.GPIO as GPIO
 
 
-IS_RUNNING = True    # indicates whether motor is running
+r = redis.Redis(host='localhost', port=6379, db=0)
 
-START_DELAY = 0.0006
-delay = START_DELAY  # same as START_DELAY
+IS_RUNNING = True        # indicates whether motor is running
+START_DELAY = 0.0006     # initial delay (motor speed)
+
+
+has_delay_changed = True
+cached_delay = 0.0
+def getDelay():
+    global cached_delay
+    global has_delay_changed
+    if has_delay_changed:
+        cached_delay = float(r.get('motor_speed') or START_DELAY)
+    has_delay_changed = False
+    return cached_delay
+
+
+def setDelay(delay):
+    global has_delay_changed
+    if cached_delay != delay:
+        has_delay_changed = True
+        r.set('motor_speed', delay)
 
 
 def main():
     try:
         global IS_RUNNING
-        global delay
 
         DIR = 20             # Direction GPIO Pin
         STEP = 21            # Step GPIO Pin
@@ -56,8 +75,6 @@ def main():
 
         SPEED_CHANGE_INTERVAL = 3
 
-        delay = START_DELAY
-
 
         def btn_run_callback(channel):
             global IS_RUNNING
@@ -67,25 +84,26 @@ def main():
 
 
         def btn_speed_up_callback(channel):
-            global delay
-            delay = delay * DELAY_CONST_PCT
-            if delay > MAX_DELAY:
-                delay = MAX_DELAY
+            _delay = getDelay()
+            _delay = _delay * DELAY_CONST_PCT
+            if _delay > MAX_DELAY:
+                _delay = MAX_DELAY
+            setDelay(_delay)
         GPIO.setup(BTN_SPEED_UP, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.add_event_detect(BTN_SPEED_UP,GPIO.RISING,callback=btn_speed_up_callback, bouncetime=300)
 
 
         def btn_speed_down_callback(channel):
-            global delay
-            delay = delay / DELAY_CONST_PCT
-            if delay < MIN_DELAY:
-                delay = MIN_DELAY
+            _delay = getDelay()
+            _delay = _delay / DELAY_CONST_PCT
+            if _delay < MIN_DELAY:
+                _delay = MIN_DELAY
+            setDelay(_delay)
         GPIO.setup(BTN_SPEED_DOWN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.add_event_detect(BTN_SPEED_DOWN,GPIO.RISING,callback=btn_speed_down_callback, bouncetime=300)
 
 
-
-        time.sleep(1)
+        # set motor direction
         GPIO.output(DIR, CCW)
 
 
@@ -99,7 +117,7 @@ def main():
 
 
 
-        average_delay = delay
+        average_delay = getDelay()
         average_count = 1
 
 
@@ -108,6 +126,7 @@ def main():
         cycles = 0
 
         while True:
+            delay = getDelay()
             if cycles % STEP_CYCLES_COUNT == 0:
                 print('Step:', cycles/STEP_CYCLES_COUNT, 'SPEED:', delay)
             cycles += 1
@@ -142,6 +161,7 @@ def main():
 
                 if top_detected and bottom_detected:
                     delay = average_delay
+                    setDelay(delay)
 
                 if not top_detected and not bottom_detected:
                     if time.time() - last_top_time > SHUTDOWN_DELAY and time.time() - last_bottom_time > SHUTDOWN_DELAY:
@@ -169,3 +189,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
