@@ -18,6 +18,7 @@ redis_queue = queue.Queue()
 START_DELAY = 0.0006         # initial delay (motor speed)
 DIR = 20                     # Direction GPIO Pin
 STEP = 21                    # Step GPIO Pin
+ENABLE_PIN = 18              # Enable step motor GPIO Pin
 CW = 1                       # Clockwise Rotation
 CCW = 0                      # Counterclockwise Rotation
 
@@ -138,8 +139,14 @@ def main():
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(SENSOR_TOP_PIN, GPIO.IN)
 
+        # ENABLE MOTOR PIN - default is disabled
+        GPIO.setup(18, GPIO.OUT)
+        GPIO.output(18, GPIO.HIGH)
+
         while True:
             if is_running:
+                GPIO.output(18, GPIO.LOW) # motor is enabled
+
                 if cycles > STEP_CYCLES_COUNT and cycles % STEP_CYCLES_COUNT == 0:
                     # add slinky step
                     redis_queue.put('add_step')
@@ -186,6 +193,7 @@ def main():
                 GPIO.output(STEP, GPIO.LOW)
                 time.sleep(delay)
             else:
+                GPIO.output(18, GPIO.HIGH) # motor is disabled
                 time.sleep(0.5)
 
     except KeyboardInterrupt:
