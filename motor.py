@@ -35,7 +35,6 @@ STEP_CYCLES_COUNT = 1231     # number of motor steps needed to run one elevator 
 
 PUBSUB_CHECK_INTERVAL = 5.0  # to save time/CPU we only check redis pubsub messages channel once per specified time in seconds
 
-# FIXME: it seems???, that this value needs to be higher than SPEED_CHANGE_INTERVAL otherwise automatic shutdown does not work
 SHUTDOWN_DELAY = 3.0         # delay, when motor is automatically
                              # powerd off when TOP and BOTTOM sensor are without signal
 
