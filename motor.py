@@ -25,14 +25,14 @@ SENSOR_TOP_PIN = 17          # PIN of top sensor
 MAX_DELAY = 0.001            # maximum delay for step motor between steps
 MIN_DELAY = 0.0001           # minimum delay for step motor between steps
 DELAY_CONST_PCT = 1.05       # constant how much in percent is changed speed
-SPEED_CHANGE_INTERVAL = 3    # how often can be speed changed in seconds
+SPEED_CHANGE_INTERVAL = 1.5  # how often can be speed changed in seconds
 
 STEP_CYCLES_COUNT = 1231     # number of motor steps needed to run one elevator step
 
-PUBSUB_CHECK_INTERVAL = 0.5  # to save time/CPU we only check redis pubsub messages channel once per specified time in seconds
+PUBSUB_CHECK_INTERVAL = 5.0  # to save time/CPU we only check redis pubsub messages channel once per specified time in seconds
 
-# FIXME: it seems, that this value needs to be higher than SPEED_CHANGE_INTERVAL otherwise automatic shutdown does not work
-SHUTDOWN_DELAY = 2.0         # delay, when motor is automatically
+# FIXME: it seems???, that this value needs to be higher than SPEED_CHANGE_INTERVAL otherwise automatic shutdown does not work
+SHUTDOWN_DELAY = 3.0         # delay, when motor is automatically
                              # powerd off when TOP and BOTTOM sensor are without signal
 
 
@@ -66,6 +66,7 @@ def set_delay(delay):
         has_delay_changed = True
         # store delay value in Redis
         r.set('motor_speed', delay)
+        r.set('motor_avg_speed', average_delay)
 
 
 def add_slinky_step():
@@ -144,7 +145,6 @@ def main():
                 msg = pubsub.get_message()
                 if msg and msg['type'] == 'message':
                     cmd = msg['data'].decode()
-                    print('Received:', cmd)
                     if cmd == 'toggle_motor': # toggle motor messsage received
                         toggle_motor()
                     elif cmd == 'motor_speed_up': # speed up motor messsage received
@@ -156,7 +156,6 @@ def main():
             delay = get_delay()
             if cycles % STEP_CYCLES_COUNT == 0:
                 add_slinky_step()
-                print('Step:', cycles/STEP_CYCLES_COUNT, 'SPEED:', delay)
             cycles += 1
 
             if is_running:

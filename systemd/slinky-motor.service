@@ -9,6 +9,9 @@ ExecStart=/usr/bin/pipenv run python motor.py
 Restart=always
 Environment=PYTHONUNBUFFERED=1
 
+# Performance tuning
+Nice=-20
+CPUWeight=1000
+
 [Install]
 WantedBy=multi-user.target
-
