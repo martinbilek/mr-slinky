@@ -1,0 +1,13 @@
+[Unit]
+Description=Mr. Slinky - Web Interface (via pipenv)
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/mr-slinky
+ExecStart=/usr/bin/pipenv run flask --app web run --port=8000 --host=0.0.0.0
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
