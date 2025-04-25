@@ -3,11 +3,15 @@ import redis
 import time
 import RPi.GPIO as GPIO
 
+import threading
+import queue
+
 
 # Redis
 r = redis.Redis(host='localhost', port=6379, db=0)
 pubsub = r.pubsub()
 pubsub.subscribe('slinky_channel')
+redis_queue = queue.Queue()
 
 
 # Constants
@@ -46,33 +50,29 @@ speed_changed = True              # indicates whether speed has been changed in 
 average_delay = START_DELAY       # calculated average delay between steps of motor
 average_count = 1                 # from how much values is average delay calculated? needed to calculate average when new numbers coming
 cycles = 0                        # how many motor steps is already done
-has_delay_changed = True          # indicates whether delay has changed so we know whether we need to read fresh value from redis (#cache)
-cached_delay = 0.0                # cached delay value
+delay = 0.0                       # delay value
 
 
-def get_delay():
-    global cached_delay
-    global has_delay_changed
-    if has_delay_changed:
-        # read delay value from Redis
-        cached_delay = float(r.get('motor_speed') or START_DELAY)
-    has_delay_changed = False
-    return cached_delay
-
-
-def set_delay(delay):
-    global has_delay_changed
-    if cached_delay != delay:
-        has_delay_changed = True
+def redis_worker():
+    while True:
         # store delay value in Redis
         r.set('motor_speed', delay)
         r.set('motor_avg_speed', average_delay)
 
+        # read control messages comming from outside (i.e. from frontend interface)
+        msg = pubsub.get_message()
+        if msg and msg['type'] == 'message':
+            cmd = msg['data'].decode()
+            if cmd == 'toggle_motor': # toggle motor messsage received
+                toggle_motor()
 
-def add_slinky_step():
-    steps = int(r.get('steps') or 0)
-    steps += 1
-    r.set('steps', steps)
+        # store step value in redis
+        if redis_queue.qsize() > 0 and redis_queue.get() == 'add_step':
+            _steps = int(r.get('steps') or 0)
+            _steps += 1
+            r.set('steps', _steps)
+
+        time.sleep(0.5)
 
 
 def toggle_motor():
@@ -93,23 +93,24 @@ def toggle_motor():
 
 
 def speed_down_motor():
-    _delay = get_delay()
-    _delay = _delay * DELAY_CONST_PCT
+    global delay
+    _delay = delay * DELAY_CONST_PCT
     if _delay > MAX_DELAY:
         _delay = MAX_DELAY
-    set_delay(_delay)
+    delay = _delay
 
 
 def speed_up_motor():
-    _delay = get_delay()
-    _delay = _delay / DELAY_CONST_PCT
+    global delay
+    _delay = delay / DELAY_CONST_PCT
     if _delay < MIN_DELAY:
         _delay = MIN_DELAY
-    set_delay(_delay)
+    delay = _delay
 
 
 def main():
-    global cycles, \
+    global delay, \
+        cycles, \
         last_top_time, \
         last_bottom_time, \
         top_detected, \
@@ -117,6 +118,8 @@ def main():
         speed_changed, \
         average_delay, \
         average_count
+
+    threading.Thread(target=redis_worker, daemon=True).start()
 
     try:
         # disable GPIO warnings
@@ -136,29 +139,14 @@ def main():
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(SENSOR_TOP_PIN, GPIO.IN)
 
-        # to save time we only check redis pubsub messages once in a while
-        last_pubsub_check = 0
-
         while True:
-
-            if time.time() - last_pubsub_check >= PUBSUB_CHECK_INTERVAL:
-                msg = pubsub.get_message()
-                if msg and msg['type'] == 'message':
-                    cmd = msg['data'].decode()
-                    if cmd == 'toggle_motor': # toggle motor messsage received
-                        toggle_motor()
-                    elif cmd == 'motor_speed_up': # speed up motor messsage received
-                        speed_up_motor()
-                    elif cmd == 'motor_speed_down': # speed down motor messsage received
-                        speed_down_motor()
-                last_pubsub_check = time.time()
-
-            delay = get_delay()
-            if cycles % STEP_CYCLES_COUNT == 0:
-                add_slinky_step()
-            cycles += 1
-
             if is_running:
+                if cycles > STEP_CYCLES_COUNT and cycles % STEP_CYCLES_COUNT == 0:
+                    # add slinky step
+                    redis_queue.put('add_step')
+
+                cycles += 1
+
                 if not top_detected and GPIO.input(SENSOR_TOP_PIN) == GPIO.LOW:
                     last_top_time = time.time()
                     top_detected = True
@@ -185,7 +173,6 @@ def main():
 
                 if top_detected and bottom_detected:
                     delay = average_delay
-                    set_delay(delay)
 
                 if not top_detected and not bottom_detected:
                     if time.time() - last_top_time > SHUTDOWN_DELAY and time.time() - last_bottom_time > SHUTDOWN_DELAY:
