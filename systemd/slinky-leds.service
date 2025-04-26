@@ -1,0 +1,13 @@
+[Unit]
+Description=Mr. Slinky - LED lights (via pipenv)
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/mr-slinky
+ExecStart=/usr/bin/pipenv run python leds.py
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
