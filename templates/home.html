@@ -52,8 +52,8 @@
             display: flex;
         }
 
-        .bottom-left {
-            flex: 0 0 50%;
+        .bottom-1 {
+            flex: 0 0 25%;
             flex-direction: column;
             background: #fff;
             color: #000;
@@ -62,7 +62,7 @@
             align-items: center;
         }
 
-        .bottom-left .speed {
+        .bottom-1 .speed {
             display: block;
             width: 100%;
             text-align: center;
@@ -73,8 +73,8 @@
             text-overflow: ellipsis;
         }
 
-        .bottom-right {
-            flex: 0 0 50%;
+        .bottom-2 {
+            flex: 0 0 25%;
             flex-direction: column;
             background: #fff;
             color: #000;
@@ -83,7 +83,49 @@
             align-items: center;
         }
 
-        .bottom-right .speed {
+        .bottom-2 .speed {
+            display: block;
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            font-size: 4em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bottom-3 {
+            flex: 0 0 25%;
+            flex-direction: column;
+            background: #fff;
+            color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottom-3 .speed {
+            display: block;
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            font-size: 4em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bottom-4 {
+            flex: 0 0 25%;
+            flex-direction: column;
+            background: #fff;
+            color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottom-4 .speed {
             display: block;
             width: 100%;
             text-align: center;
@@ -122,13 +164,21 @@
             <div class="description">Mr. Slinky’s journey in steps</div>
         </div>
         <div class="bottom">
-            <div class="bottom-left">
+            <div class="bottom-1">
                 <div id="avg-steps-min" class="speed"></div>
                 <div class="description">Steps per minute</div>
             </div>
-            <div class='bottom-right'>
+            <div class='bottom-2'>
                 <div class="speed" id="avg-speed-sec"></div>
                 <div class="description">Seconds to complete one step</div>
+            </div>
+            <div class='bottom-3'>
+                <div class="speed" id="distance-traveled"></div>
+                <div class="description">Distance traveled (km)</div>
+            </div>
+            <div class='bottom-4'>
+                <div class="speed" id="height-climbed"></div>
+                <div class="description">Height climbed (km)</div>
             </div>
         </div>
     </div>
@@ -153,42 +203,15 @@ function toggleMotor() {
     toggleMenu();
 }
 
-let startTime = null;
-let startStepCount = null;
-const speedHistory = [];
-const maxHistory = 10;
-
 function updateData() {
     fetch('/data')
         .then(response => response.json())
         .then(data => {
-            const steps = data.steps_count;
-
-            // Initialize on first fetch
-            if (startTime === null) {
-                startTime = Date.now();
-                startStepCount = steps;
-            }
-
-            // Calculate steps per minute
-            const elapsedMs = Date.now() - startTime;
-            const elapsedMin = elapsedMs / 60000;
-            const stepsTraveled = steps - startStepCount;
-
-            const speed = stepsTraveled / elapsedMin;
-
-            // Store in history
-            speedHistory.push(speed);
-            if (speedHistory.length > maxHistory) {
-                speedHistory.shift();
-            }
-
-            // Average of last N speeds
-            const avgSpeed = speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length;
-
-            document.getElementById('steps-count').textContent = steps.toLocaleString('en').replace(/,/g, '.');
-            document.getElementById('avg-steps-min').textContent = avgSpeed.toFixed(2);
-            document.getElementById('avg-speed-sec').textContent = (60 / avgSpeed).toFixed(2);
+            document.getElementById('steps-count').textContent = data.steps_count.toLocaleString('en').replace(/,/g, '.');
+            document.getElementById('avg-speed-sec').textContent = data.time_per_step_sec.toFixed(2);
+            document.getElementById('avg-steps-min').textContent = (60 / data.time_per_step_sec).toFixed(2);
+            document.getElementById('distance-traveled').textContent = (data.steps_count * 0.000095).toFixed(2);
+            document.getElementById('height-climbed').textContent = (data.steps_count * 0.000075).toFixed(2);
         });
 }
 
@@ -239,6 +262,6 @@ function reloadPage() {
 }
 
 window.onload = updateData;
-setInterval(updateData, 900);
+setInterval(updateData, 300);
 </script>
 </html>

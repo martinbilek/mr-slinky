@@ -16,9 +16,8 @@ def get_home():
 @app.route('/data')
 def get_data():
     data = {
-        'motor_speed': float(r.get('motor_speed') or -1.0),
-        'motor_avg_speed': float(r.get('motor_avg_speed') or -1.0),
-        'steps_count': int(r.get('steps') or -1.0)
+        'steps_count': int(r.get('steps') or -1.0),
+        'time_per_step_sec': float(r.get('time_per_step_sec') or -1.0),
     }
     return jsonify(data)
 

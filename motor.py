@@ -22,6 +22,7 @@ SHUTDOWN_DELAY = 3.0  # delay, when motor is automatically
 
 STAIR_MOTOR_STEPS = 1231  # how many motor steps to travel one physical step
 
+
 def create_step_waveform(pi, step_delay_sec):
     '''Helper function to create one repeating step waveform'''
     step_delay_us = int(step_delay_sec * 1_000_000)

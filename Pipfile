@@ -7,6 +7,7 @@ name = "pypi"
 redis = "*"
 flask = "*"
 rpi-lgpio = "*"
+pigpio = "*"
 
 [dev-packages]
 
