@@ -53,13 +53,13 @@ def main():
 
             # Flash bright color
             set_color(strip, r1, g1, b1, FLASH_BRIGHTNESS)
-            time.sleep(0.1)  # strong flash
+            time.sleep(0.2)  # strong flash
 
             # Fade to new color + dim brightness
             fade_brightness(strip, r1, g1, b1, r2, g2, b2)
 
             # Wait until next step
-            remaining_time = update_interval - FADE_TIME
+            remaining_time = update_interval - FADE_TIME - 0.25
             if remaining_time > 0:
                 time.sleep(remaining_time)
 
