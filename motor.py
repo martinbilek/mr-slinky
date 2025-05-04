@@ -9,7 +9,7 @@ MOTOR_STEP_PIN = 21
 MOTOR_DIR_PIN = 20
 MOTOR_ENABLE_PIN = 18
 
-START_MOTOR_STEP_DELAY_SEC = 0.0005  # initial delay (motor speed)
+START_MOTOR_STEP_DELAY_SEC = 0.0003  # initial delay (motor speed)
 
 SENSOR_BOTTOM_PIN = 27  # PIN of bottom sensor
 SENSOR_TOP_PIN = 17     # PIN of top sensor
@@ -20,7 +20,7 @@ DELAY_CONST_PCT = 1.05       # constant how much in percent is changed speed
 SHUTDOWN_DELAY = 3.0  # delay, when motor is automatically
                       # powered off when TOP and BOTTOM sensor are without detection
 
-STAIR_MOTOR_STEPS = 1231  # how many motor steps to travel one physical step
+STAIR_MOTOR_STEPS = 1231 * 2  # how many motor steps to travel one physical step
 
 
 def create_step_waveform(pi, step_delay_sec):
@@ -46,8 +46,6 @@ def set_motor_speed(pi, step_delay_sec):
     # enable motor - in case it was not running before
     pi.write(MOTOR_ENABLE_PIN, 0)
 
-    print('Changing speed...')
-
     # Create and start new wave
     wave = create_step_waveform(pi, step_delay_sec)
     pi.wave_send_repeat(wave)
@@ -70,54 +68,54 @@ def main():
     r = redis.Redis(host='localhost', port=6379, db=0)
 
     # sensors detection variables
-    last_top_time = time.time()       # time, when was object indicated on top sensor
-    last_bottom_time = time.time()    # time, when was object indicated on bottom sensor
-    top_detected = True               # indicates whether object is detected on top sensor during
-    bottom_detected = True            # indicates whether object is detected on bottom sensor during
+    last_top_time = time.monotonic()       # time, when was object indicated on top sensor
+    last_bottom_time = time.monotonic()    # time, when was object indicated on bottom sensor
+    top_detected = False                   # indicates whether object is detected on top sensor during
+    bottom_detected = False                # indicates whether object is detected on bottom sensor during
 
-    speed_changed = True              # indicates whether speed has been changed in previous cycle already
+    speed_changed = True                   # indicates whether speed has been changed in previous cycle already
 
-    step_log_interval = 1.5
-    step_last_log_time = time.time()
+    step_log_interval = 0.5                # how often log avg step interval to redis
+    step_last_log_time = time.monotonic()  # last log time
 
     try:
         # Setup motor
         pi.set_mode(MOTOR_DIR_PIN, pigpio.OUTPUT)     # direction PIN
         pi.set_mode(MOTOR_STEP_PIN, pigpio.OUTPUT)    # step PIN
         pi.set_mode(MOTOR_ENABLE_PIN, pigpio.OUTPUT)  # enable PIN
-        pi.write(MOTOR_DIR_PIN, 0)                    # set motor direction
+        pi.write(MOTOR_DIR_PIN, 1)                    # set motor direction
 
         # Setup sensors
         pi.set_mode(SENSOR_BOTTOM_PIN, pigpio.INPUT)
         pi.set_mode(SENSOR_TOP_PIN, pigpio.INPUT)
 
         step_delay_sec = START_MOTOR_STEP_DELAY_SEC
-        last_step_delay_sec = 1000
+        last_step_delay_sec = START_MOTOR_STEP_DELAY_SEC
 
         average_step_delay_sec = START_MOTOR_STEP_DELAY_SEC  # calculated average delay between steps of motor
         average_step_delay_count = 1                         # from how much values is average delay calculated? needed to calculate average when new numbers coming
 
-        is_stopped = False
+        is_stopped = True
 
         motor_steps_accumulated = 0  # count how many motor steps passed
-        last_waveform_check = time.time()
+        last_waveform_check = time.monotonic()
 
         while True:
 
             # top sensor dection
             if not top_detected and pi.read(SENSOR_TOP_PIN) == 0:
-                last_top_time = time.time()
+                last_top_time = time.monotonic()
                 top_detected = True
                 speed_changed = False
-            if time.time() - last_top_time > SPEED_CHANGE_INTERVAL:
+            if time.monotonic() - last_top_time > SPEED_CHANGE_INTERVAL:
                 top_detected = False # after specified time detection is considered false
 
             # bottom sensor dection
             if not bottom_detected and pi.read(SENSOR_BOTTOM_PIN) == 0:
-                last_bottom_time = time.time()
+                last_bottom_time = time.monotonic()
                 bottom_detected = True
                 speed_changed = False
-            if time.time() - last_bottom_time > SPEED_CHANGE_INTERVAL:
+            if time.monotonic() - last_bottom_time > SPEED_CHANGE_INTERVAL:
                 bottom_detected = False # after specified time detection is considered false
 
             if top_detected and bottom_detected:
@@ -141,13 +139,13 @@ def main():
 
                 if is_stopped:
                     motor_steps_accumulated = 0
-                    last_waveform_check = time.time()
+                    last_waveform_check = time.monotonic()
 
                 is_stopped = False
 
             if not is_stopped:
                 if not top_detected and not bottom_detected:
-                    if time.time() - last_top_time > SHUTDOWN_DELAY and time.time() - last_bottom_time > SHUTDOWN_DELAY:
+                    if time.monotonic() - last_top_time > SHUTDOWN_DELAY and time.monotonic() - last_bottom_time > SHUTDOWN_DELAY:
                         # reset speed to default to adapt speed to different slinky faster
                         step_delay_sec = START_MOTOR_STEP_DELAY_SEC
                         last_step_delay_sec = START_MOTOR_STEP_DELAY_SEC
@@ -162,7 +160,7 @@ def main():
                         pi.write(MOTOR_ENABLE_PIN, 1)  # disable motor
 
                 # Calculate steps
-                now = time.time()
+                now = time.monotonic()
                 elapsed = now - last_waveform_check
                 # How many motor steps happened since last check
                 motor_frequency = 1 / (2 * step_delay_sec)
@@ -175,10 +173,11 @@ def main():
                 last_waveform_check = now
 
                 # log to redis currnet step avg time in seconds
-                if time.time() - step_last_log_time >= step_log_interval:
-                    time_per_step_sec = STAIR_MOTOR_STEPS * (2 * step_delay_sec)
+                if time.monotonic() - step_last_log_time >= step_log_interval:
+                    time_per_step_sec = STAIR_MOTOR_STEPS * (2 * average_step_delay_sec)
                     r.set('time_per_step_sec', time_per_step_sec)
-                    step_last_log_time = time.time()
+                    step_last_log_time = time.monotonic()
+                    print(pi.read(SENSOR_TOP_PIN), pi.read(SENSOR_BOTTOM_PIN))
 
             average_step_delay_count += 1
             average_step_delay_sec = average_step_delay_sec + (step_delay_sec - average_step_delay_sec) / average_step_delay_count
